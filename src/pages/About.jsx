@@ -2,9 +2,7 @@ import { Link } from "react-router-dom";
 
 export default function About() {
     return (
-        // Changed bg to white, text to gray-900
         <div className="relative min-h-screen bg-white text-gray-900 flex flex-col items-center p-6 md:p-12 overflow-hidden selection:bg-blue-500/20">
-            {/* Background Glows - Swapped to light blue/indigo tints */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/50 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100/50 blur-[120px] rounded-full pointer-events-none" />
 

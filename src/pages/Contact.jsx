@@ -2,14 +2,13 @@ import { Link } from "react-router-dom";
 
 export default function Contact() {
     return (
-        // Changed bg to white, text to gray-900
         <div className="relative min-h-screen bg-white text-gray-900 flex flex-col items-center p-6 md:p-12 overflow-hidden selection:bg-blue-500/20">
             {/* Background Glows - Adjusted for light theme */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/50 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100/50 blur-[120px] rounded-full pointer-events-none" />
 
             <main className="w-full max-w-2xl mt-16 z-10">
-                {/* Main Container - Changed to solid white with subtle border */}
+                {/* Main Container */}
                 <div className="bg-gray-50/50 backdrop-blur-xl border border-gray-200 rounded-[2rem] p-10 shadow-xl shadow-gray-200/50">
 
                     <h1 className="relative inline-block text-4xl md:text-5xl font-extrabold tracking-tighter mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-700 via-blue-500 to-indigo-600 drop-shadow-[0_2px_2px_rgba(0,0,0,0.1)] group cursor-default">

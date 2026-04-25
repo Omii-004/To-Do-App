@@ -14,9 +14,6 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 
-
-
-
 export default function Todos() {
     const { user } = useUser();
 
@@ -24,7 +21,7 @@ export default function Todos() {
     const [input, setInput] = useState("");
     const [editId, setEditId] = useState(null);
 
-    // ✅ FETCH TODOS FROM SUPABASE
+    // FETCH TODOS FROM SUPABASE
     useEffect(() => {
         if (user) fetchTodos();
     }, [user]);
@@ -39,7 +36,7 @@ export default function Todos() {
         if (!error) setTodos(data);
     };
 
-    // ✅ ADD TODO
+    // ADD TODO
     const addTodo = async () => {
 
         if (!input.trim()) return;
@@ -64,13 +61,13 @@ export default function Todos() {
         }
     };
 
-    // ✅ EDIT START
+    // EDIT START
     const startEdit = (todo) => {
         setInput(todo.text);
         setEditId(todo.id);
     };
 
-    // ✅ TOGGLE DONE
+    // TOGGLE DONE
     const toggleTodo = async (id, current) => {
         await supabase
             .from("todos")
@@ -80,13 +77,13 @@ export default function Todos() {
         fetchTodos();
     };
 
-    // ✅ DELETE TODO
+    // DELETE TODO
     const deleteTodo = async (id) => {
         await supabase.from("todos").delete().eq("id", id);
         fetchTodos();
     };
 
-    //OpenRouter Chat State
+    // OpenRouter Chat State
     const [messages, setMessages] = useState([
         { role: "assistant", content: "Hi 👋 Ask me anything!" }
     ]);
@@ -103,7 +100,7 @@ export default function Todos() {
 
 
 
-    // ✅ SEND MESSAGE TO OPENROUTER
+    // SEND MESSAGE TO OPENROUTER
     const sendMessage = async () => {
         if (!chatInput.trim()) return;
 
@@ -133,9 +130,7 @@ export default function Todos() {
             });
 
             const data = await res.json();
-            console.log("API RESPONSE:", data);
-
-
+            
             const reply = data.choices?.[0]?.message?.content || "No response";
 
             setMessages([
@@ -298,8 +293,8 @@ export default function Todos() {
                             </div>
                         )}
                     </div>
+
                     {/* CHAT PANEL */}
-                    {/* FLOATING CHAT BUTTON */}
                     <button
                         onClick={() => setIsChatOpen(true)}
                         className="fixed bottom-5 right-5 w-14 h-14 rounded-full 
@@ -311,8 +306,6 @@ export default function Todos() {
                         <MessageCircle size={24} />
                     </button>
 
-
-
                     {/* BACKDROP */}
                     {isChatOpen && (
                         <div
@@ -322,7 +315,7 @@ export default function Todos() {
                     )}
 
 
-                    {/* SIDE PANEL (ALWAYS RENDERED FOR ANIMATION) */}
+                    {/* SIDE PANEL */}
                     <div
                         className={`fixed top-0 right-0 h-full 
     ${isFullScreen ? "w-full" : "w-[350px]"} 
