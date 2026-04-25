@@ -65,7 +65,56 @@ This project combines task management + AI assistance in one clean, modern inter
 
 ## ⚙️ Installation & Setup
 
-### 1. Clone the repository
-```bash
+1. Clone the repository
 git clone https://github.com/your-username/todo-ai-app.git
 cd todo-ai-app
+
+2. Install dependencies
+npm install
+
+3. Setup environment variables
+
+Create a .env file in the root directory:
+
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key
+
+VITE_OPENROUTER_API_KEY=your_openrouter_key
+
+4. Run the project
+npm run dev
+
+## 🔐 Database Setup (Supabase)
+
+Create a table:
+
+todos
+Column	Type
+id	uuid (PK)
+text	text
+done	boolean
+user_id	text
+created_at	timestamp
+
+Enable Row Level Security (RLS) and add policies for user access.
+
+
+## 🤖 AI Chat Setup
+
+This project uses OpenRouter API.
+
+Example request:
+
+fetch("https://openrouter.ai/api/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer YOUR_API_KEY`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    model: "mistralai/mistral-7b-instruct",
+    messages: [...]
+  })
+});
