@@ -53,16 +53,6 @@ This project combines task management + AI assistance in one clean, modern inter
 
 ---
 
-## 📸 Screenshots
-
-> Add screenshots here
-
-- Home Page  
-- Todo List UI  
-- AI Chat Sidebar  
-
----
-
 ## ⚙️ Installation & Setup
 
 ### 1. Clone the repository
@@ -76,12 +66,12 @@ npm install
 
 Create a .env file in the root directory:
 
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+1. VITE_SUPABASE_URL=your_supabase_url
+2. VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key
+3. VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key
 
-VITE_OPENROUTER_API_KEY=your_openrouter_key
+4. VITE_OPENROUTER_API_KEY=your_openrouter_key
 
 ### 4. Run the project
 npm run dev
@@ -89,14 +79,15 @@ npm run dev
 ## 🔐 Database Setup (Supabase)
 
 Create a table:
-
 todos
-Column	Type
-id	uuid (PK)
-text	text
-done	boolean
-user_id	text
-created_at	timestamp
+
+| Column         | Type      |
+| ---------------|-----------|
+| **id**         | uuid (PK) |
+| **text**       | text      |
+| **done**       | boolean   |
+| **user_id**    | text      |
+| **created_at** | timestamp |
 
 Enable Row Level Security (RLS) and add policies for user access.
 
@@ -118,3 +109,11 @@ fetch("https://openrouter.ai/api/v1/chat/completions", {
     messages: [...]
   })
 });
+
+## 📌 Future Improvements
+ - Chat history stored in Supabase
+ - Voice input for AI chat
+ - Drag & drop todos
+ - Smart AI task suggestions
+ - Due dates + reminders
+ - Mobile app version
