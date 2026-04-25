@@ -1,4 +1,4 @@
-# 📝 Smart To-Do App with AI Chat Assistant
+# 📝 To-Do App with AI Chat Assistant
 
 A modern full-stack To-Do application built with **React, Tailwind CSS, Supabase, and Clerk Authentication**, enhanced with an **AI chat assistant powered by OpenRouter LLMs**.
 
