@@ -98,6 +98,7 @@ This project uses OpenRouter API.
 
 Example request:
 
+```js
 fetch("https://openrouter.ai/api/v1/chat/completions", {
   method: "POST",
   headers: {
@@ -109,6 +110,7 @@ fetch("https://openrouter.ai/api/v1/chat/completions", {
     messages: [...]
   })
 });
+```
 
 ## 📌 Future Improvements
  - Chat history stored in Supabase
