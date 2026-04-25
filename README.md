@@ -65,14 +65,14 @@ This project combines task management + AI assistance in one clean, modern inter
 
 ## ⚙️ Installation & Setup
 
-1. Clone the repository
+### 1. Clone the repository
 git clone https://github.com/your-username/todo-ai-app.git
 cd todo-ai-app
 
-2. Install dependencies
+### 2. Install dependencies
 npm install
 
-3. Setup environment variables
+### 3. Setup environment variables
 
 Create a .env file in the root directory:
 
@@ -83,7 +83,7 @@ VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key
 
 VITE_OPENROUTER_API_KEY=your_openrouter_key
 
-4. Run the project
+### 4. Run the project
 npm run dev
 
 ## 🔐 Database Setup (Supabase)
