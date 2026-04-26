@@ -21,10 +21,10 @@ function Greeting() {
 }
 
 export default function Home() {
+    const { user } = useUser();
     return (
         <div className="relative min-h-screen bg-white text-gray-900 flex flex-col items-center p-6 overflow-hidden selection:bg-blue-500/20">
 
-            {/* Background Glows - Subtler for white theme */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100 blur-[120px] rounded-full pointer-events-none" />
 
@@ -45,21 +45,10 @@ export default function Home() {
                 </SignedOut>
 
                 <nav className="flex items-center gap-8">
-                    <Link
-                        to="/about"
-                        className="relative md:flex items-center gap-8 text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors py-2 group"
-                    >
-                        ABOUT
-                        <span className="absolute left-0 bottom-0 w-full h-[1px] bg-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                    </Link>
+                    <div className="relative md:flex items-center gap-8 text-xs font-medium text-gray-500 py-2 group cursor-default">
+                        {user?.primaryEmailAddress?.emailAddress}
+                    </div>
 
-                    <Link
-                        to="/contact"
-                        className="relative md:flex items-center gap-8 text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors py-2 group"
-                    >
-                        CONTACT
-                        <span className="absolute left-0 bottom-0 w-full h-[1px] bg-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                    </Link>
 
                     <SignedIn>
                         <div className="pl-4 border-l border-gray-200">

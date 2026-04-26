@@ -7,7 +7,10 @@ import { Trash2, CheckCircle2, Circle, CheckSquare, Pencil } from "lucide-react"
 import { X } from "lucide-react";
 import { MessageCircle } from "lucide-react";
 import { Maximize2, Minimize2 } from "lucide-react";
+import { History } from "lucide-react";
 import { Send } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -38,28 +41,69 @@ export default function Todos() {
 
     // ADD TODO
     const addTodo = async () => {
-
         if (!input.trim()) return;
 
+        // Edit mode
         if (editId) {
-            // delete old todo
-            await supabase.from("todos").delete().eq("id", editId);
+            const prevTodos = todos;
+
+            //1. Update UI instantly
+            setTodos((prev) =>
+                prev.map((todo) =>
+                    todo.id === editId
+                        ? { ...todo, text: input }
+                        : todo
+                )
+            );
+
             setEditId(null);
+            setInput("");
+
+            //2. Update DB in background
+            const { error } = await supabase
+                .from("todos")
+                .update({ text: input })
+                .eq("id", editId);
+
+            //rollback if error
+            if (error) {
+                setTodos(prevTodos);
+            }
+
+            return;
         }
 
-        const { error } = await supabase.from("todos").insert([
-            {
-                text: input,
-                done: false,
-                user_id: user.id,
-            },
-        ]);
+        // ADD MODE
+        const tempTodo = {
+            id: Date.now(), // temporary id
+            text: input,
+            done: false,
+            user_id: user.id,
+        };
 
-        if (!error) {
-            setInput("");
-            fetchTodos();
+        //instant UI update
+        setTodos((prev) => [...prev, tempTodo]);
+        setInput("");
+
+        const { data, error } = await supabase
+            .from("todos")
+            .insert([
+                {
+                    text: input,
+                    done: false,
+                    user_id: user.id,
+                },
+            ])
+            .select();
+
+        if (!error && data) {
+            // replace temp todo with real one
+            setTodos((prev) =>
+                prev.map((t) => (t.id === tempTodo.id ? data[0] : t))
+            );
         }
     };
+
 
     // EDIT START
     const startEdit = (todo) => {
@@ -68,51 +112,199 @@ export default function Todos() {
     };
 
     // TOGGLE DONE
-    const toggleTodo = async (id, current) => {
-        await supabase
+    const toggleTodo = async (id) => {
+        //1. update UI instantly
+        setTodos((prev) =>
+            prev.map((todo) =>
+                todo.id === id ? { ...todo, done: !todo.done } : todo
+            )
+        );
+
+        //2. update DB in background
+        const { error } = await supabase
             .from("todos")
-            .update({ done: !current })
+            .update({ done: true }) // you can toggle properly if needed
             .eq("id", id);
 
-        fetchTodos();
+        if (error) {
+            //rollback if error
+            setTodos((prev) =>
+                prev.map((todo) =>
+                    todo.id === id ? { ...todo, done: !todo.done } : todo
+                )
+            );
+        }
     };
+
 
     // DELETE TODO
     const deleteTodo = async (id) => {
-        await supabase.from("todos").delete().eq("id", id);
-        fetchTodos();
+        const prevTodos = todos;
+
+        //1. remove instantly
+        setTodos((prev) => prev.filter((todo) => todo.id !== id));
+
+        //2. delete in DB
+        const { error } = await supabase
+            .from("todos")
+            .delete()
+            .eq("id", id);
+
+        if (error) {
+            //rollback
+            setTodos(prevTodos);
+        }
     };
 
-    // OpenRouter Chat State
-    const [messages, setMessages] = useState([
-        { role: "assistant", content: "Hi 👋 Ask me anything!" }
-    ]);
 
+    // OpenRouter Chat State
+    const [messages, setMessages] = useState([]);
     const [chatInput, setChatInput] = useState("");
     const [chatLoading, setChatLoading] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const chatEndRef = useRef(null);
+
+    const checkRateLimit = async () => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0); // start of today (midnight)
+
+        const { data, error } = await supabase
+            .from("rate_limit")
+            .select("*")
+            .eq("user_id", user.id)
+            .gte("created_at", todayStart.toISOString());
+
+        if (error) return false;
+
+        return data.length < 5; //5 messages per day
+    };
+
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, chatLoading]);
 
+    const extractTodo = (text) => {
+        const cleaned = text
+            .replace(/^add (as )?todo[:\s]*/i, "")
+            .trim();
 
-
+        return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    };
 
     // SEND MESSAGE TO OPENROUTER
     const sendMessage = async () => {
         if (!chatInput.trim()) return;
 
+        //check rate limit
+        const allowed = await checkRateLimit();
+
+        if (!allowed) {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content:
+                        "⚠️ Daily limit reached. You can only send 5 messages per day.",
+                },
+            ]);
+            return;
+        }
+
+        //prepare UI message
         const newMessages = [
             ...messages,
-            { role: "user", content: chatInput }
+            { role: "user", content: chatInput },
         ];
 
         setMessages(newMessages);
         setChatInput("");
         setChatLoading(true);
 
+        //save user message in DB
+        await supabase.from("messages").insert([
+            {
+                user_id: user.id,
+                role: "user",
+                content: chatInput,
+            },
+        ]);
+
+        //log for rate limiting
+        await supabase.from("rate_limit").insert([
+            {
+                user_id: user.id,
+            },
+        ]);
+
+        //HANDLE TODO COMMAND 
+        const isTodoCommand = /^add (as )?todo[:\s]/i.test(chatInput);
+        const isDeleteCompletedCommand =
+            /delete|remove|clear/i.test(chatInput) &&
+            /completed|done/i.test(chatInput);
+
+        if (isTodoCommand) {
+            const todoText = extractTodo(chatInput);
+
+            if (todoText) {
+                const { data, error } = await supabase
+                    .from("todos")
+                    .insert([
+                        {
+                            text: todoText,
+                            done: false,
+                            user_id: user.id,
+                            created_at: new Date().toISOString(),
+                        },
+                    ])
+                    .select();
+
+                if (!error && data) {
+                    setTodos((prev) => [...prev, ...data]);
+                }
+
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content: error
+                            ? "❌ Failed to add todo. Try again."
+                            : `✅ Added to your tasks: "${todoText}"`
+                    }
+                ]);
+
+            }
+
+            setChatLoading(false);
+            return;
+        }
+        if (isDeleteCompletedCommand) {
+            const { error } = await supabase
+                .from("todos")
+                .delete()
+                .eq("user_id", user.id)
+                .eq("done", true);
+
+            if (!error) {
+                setTodos((prev) => prev.filter((todo) => !todo.done));
+            }
+
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content: error
+                        ? "❌ Failed to delete completed todos"
+                        : "🗑️ Deleted all completed todos"
+                }
+            ]);
+
+            setChatLoading(false);
+            return;
+        }
+
+
+        //ONLY CALL AI IF NOT TODO
         try {
             const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
@@ -122,7 +314,6 @@ export default function Todos() {
                     "HTTP-Referer": "http://localhost:5173",
                     "X-Title": "Todo App"
                 },
-
                 body: JSON.stringify({
                     model: "openai/gpt-oss-120b",
                     messages: newMessages
@@ -130,20 +321,86 @@ export default function Todos() {
             });
 
             const data = await res.json();
-            
+
             const reply = data.choices?.[0]?.message?.content || "No response";
 
-            setMessages([
-                ...newMessages,
+            await supabase.from("messages").insert([
+                {
+                    user_id: user.id,
+                    role: "assistant",
+                    content: reply,
+                },
+            ]);
+
+            setMessages((prev) => [
+                ...prev,
                 { role: "assistant", content: reply }
             ]);
 
-        } catch (err) {
-            console.log(err);
-        } finally {
-            setChatLoading(false);
+        } catch (error) {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content: "❌ Error fetching response"
+                }
+            ]);
+        }
+
+        setChatLoading(false);
+    };
+
+    const [showHistory, setShowHistory] = useState(false);
+    const [historyMessages, setHistoryMessages] = useState([]);
+
+    const fetchHistory = async () => {
+        const { data, error } = await supabase
+            .from("messages")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true });
+
+        if (!error) {
+            setHistoryMessages(data);
         }
     };
+
+    const openHistory = async () => {
+        await fetchHistory();
+        setShowHistory(true);
+    };
+
+    const formatDate = (timestamp) => {
+        return new Date(timestamp).toLocaleDateString();
+    };
+
+    const formatTime = (timestamp) => {
+        return new Date(timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
+
+    const [showAiPopup, setShowAiPopup] = useState(false);
+    useEffect(() => {
+        setShowAiPopup(true);
+
+        const timer = setTimeout(() => {
+            setShowAiPopup(false);
+        }, 4000); // auto close after 4s
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    const [showWelcome, setShowWelcome] = useState(true);
+    useEffect(() => {
+        if (messages.length === 0) {
+            setShowWelcome(true);
+        } else {
+            setShowWelcome(false);
+        }
+    }, [messages]);
+
 
     return (
         <>
@@ -159,7 +416,8 @@ export default function Todos() {
                         </div>
 
                         <div className="flex items-center gap-8">
-                            <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-gray-500">
+                            <nav className="flex items-center gap-4 md:gap-8 text-xs font-medium text-gray-500
+">
                                 {["Home", "About", "Contact"].map((item) => (
                                     <Link
                                         key={item}
@@ -187,13 +445,13 @@ export default function Todos() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && addTodo()}
-                            className="flex-1 bg-gray-50 border border-gray-200 rounded-md px-4 py-1 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                            className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-1 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                             placeholder="Add your task here..."
                         />
 
                         <button
                             onClick={addTodo}
-                            className="px-5 py-1 bg-blue-500 hover:bg-blue-700 text-white rounded-md text-sm"
+                            className="px-5 py-1 bg-blue-500 hover:bg-blue-700 text-white rounded-full text-sm"
                         >
                             {editId ? "Save" : "Add"}
                         </button>
@@ -227,18 +485,27 @@ export default function Todos() {
                                 <p className="text-gray-500 max-w-sm mb-8">
                                     You've completed all your tasks or haven't added any yet.
                                     Start your productivity journey by adding a task above.
+                                    <span className="block mt-2 text-gray-400">
+                                        following are some suggestions to get you going!
+                                    </span>
                                 </p>
 
-                                <div className="flex flex-wrap justify-center gap-2 mt-6">
+                                <div className="flex flex-wrap justify-center gap-2 px-4">
                                     {["Buy Groceries", "Finish Project", "Call Mom"].map((suggestion) => (
-                                        <span
+                                        <button
                                             key={suggestion}
-                                            className="px-3 py-1 bg-white/[0.03] border border-blue-500/30 rounded-full text-xs text-gray-400 cursor-default transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.2)] hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:border-blue-500/50"
+                                            onClick={() => setInput(suggestion)}
+                                            className="px-4 py-1.5 rounded-full text-xs font-medium 
+             bg-gray-800 border border-gray-700 text-gray-200 
+             hover:bg-blue-600 hover:border-blue-500 hover:text-white 
+             transition-all duration-200"
+
                                         >
                                             {suggestion}
-                                        </span>
+                                        </button>
                                     ))}
                                 </div>
+
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -256,15 +523,36 @@ export default function Todos() {
                                                 )}
                                             </button>
 
-                                            <span className={t.done ? "line-through text-gray-400" : ""}>
-                                                {t.text}
-                                            </span>
+                                            <div className="flex flex-col">
+
+                                                {/* Todo text */}
+                                                <span className={t.done ? "line-through text-gray-400" : ""}>
+                                                    {t.text}
+                                                </span>
+
+                                                {/* Date + Time */}
+                                                <div className="text-[10px] text-gray-400 mt-1 flex gap-3 items-center">
+
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar size={12} />
+                                                        {t.created_at && formatDate(t.created_at)}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock size={12} />
+                                                        {t.created_at && formatTime(t.created_at)}
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+
                                         </div>
 
-                                        <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
+                                        <div className="flex gap-3 transition">
                                             <button
                                                 onClick={() => startEdit(t)}
-                                                className="text-gray-400 hover:text-blue-400"
+                                                className="text-black"
                                             >
                                                 <Pencil size={18} />
                                             </button>
@@ -272,11 +560,12 @@ export default function Todos() {
                                             {/* Delete */}
                                             <button
                                                 onClick={() => deleteTodo(t.id)}
-                                                className="text-gray-400 hover:text-red-400"
+                                                className="text-red-500"
                                             >
                                                 <Trash2 size={18} />
                                             </button>
                                         </div>
+
                                     </div>
                                 ))}
                                 <div className="mt-8 p-6 bg-white/[0.02] border border-white/5 rounded-2xl text-center animate-in fade-in duration-1000">
@@ -313,7 +602,11 @@ export default function Todos() {
                             className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
                         />
                     )}
-
+                    {showAiPopup && (
+                        <div className="fixed bottom-20 right-5 bg-white shadow-lg border px-4 py-2 rounded-lg text-sm animate-bounce z-50">
+                            👋 Try asking the AI assistant!
+                        </div>
+                    )}
 
                     {/* SIDE PANEL */}
                     <div
@@ -324,12 +617,12 @@ export default function Todos() {
     ${isChatOpen ? "translate-x-0" : "translate-x-full"}`}
                     >
 
-
                         {/* HEADER */}
                         <div className="flex justify-between items-center px-4 py-3 border-b bg-white/60 backdrop-blur-md">
                             <h2 className="font-semibold text-gray-800">AI Assistant</h2>
 
                             <div className="flex items-center gap-2">
+
                                 <button
                                     onClick={() => setIsFullScreen(!isFullScreen)}
                                     className="p-1 rounded-md hover:bg-gray-200 transition"
@@ -345,17 +638,65 @@ export default function Todos() {
                                 </button>
                             </div>
                         </div>
-
+                        <button
+                            onClick={openHistory}
+                            className="fixed bottom-20 right-5 w-12 h-12 bg-gray-800 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-700 transition"
+                        >
+                            <History size={20} />
+                        </button>
 
                         {/* CHAT AREA */}
                         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
 
                             <div className="max-w-2xl mx-auto w-full">
+                                {showWelcome && (
+                                    <div className="p-4 space-y-3">
+
+                                        <h2 className="text-sm font-semibold text-gray-600">
+                                            👋 Welcome! Try these:
+                                        </h2>
+
+                                        {/* Card 1 - Add a todo */}
+                                        <button
+                                            onClick={() => {
+                                                setChatInput("Add todo Buy groceries");
+                                                setShowWelcome(false);
+                                            }}
+                                            className="w-full text-left p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+                                        >
+                                            ➕ Add a todo
+                                            <p className="text-xs text-gray-500">Try: "Add todo Buy groceries"</p>
+                                        </button>
+
+                                        {/* Card 2 - Delete completed todos */}
+                                        <button
+                                            onClick={() => {
+                                                setChatInput("Delete completed todos");
+                                                setShowWelcome(false);
+                                            }}
+                                            className="w-full text-left p-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition"
+                                        >
+                                            🗑️ Delete completed todos
+                                            <p className="text-xs text-gray-500">
+                                                Clean up all finished tasks instantly
+                                            </p>
+                                        </button>
+
+                                        {/* Card 3 - Rate limit */}
+                                        <div className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                            ⚡ Rate limit
+                                            <p className="text-xs text-gray-500">
+                                                You can send 5 messages per day
+                                            </p>
+                                        </div>
+
+                                    </div>
+                                )}
 
                                 {messages.map((msg, i) => (
                                     <div
                                         key={i}
-                                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} mb-3`}
                                     >
                                         <div
                                             className={`px-4 py-2 rounded-2xl text-sm max-w-[80%] whitespace-pre-wrap
@@ -422,12 +763,8 @@ export default function Todos() {
                                     </div>
                                 )}
                                 <div ref={chatEndRef} />
-
-
-
                             </div>
                         </div>
-
 
                         {/* INPUT */}
                         <div className="border-t bg-white/70 backdrop-blur-md p-3">
@@ -452,22 +789,53 @@ export default function Todos() {
                                 >
                                     <Send size={18} />
                                 </button>
-
-
-
                             </div>
                         </div>
 
                     </div>
+                    <div
+                        className={`fixed top-0 right-0 h-full w-[350px]
+  bg-white/80 backdrop-blur-md shadow-lg z-50 flex flex-col
+  transform transition-transform duration-300 ease-in-out
+  ${showHistory ? "translate-x-0" : "translate-x-full"}`}
+                    >
 
+                        {/* Header */}
+                        <div className="flex justify-between items-center p-3 border-b">
+                            <h2 className="font-semibold">Chat History</h2>
+                            <button onClick={() => setShowHistory(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
 
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4">
+                            <div className="flex flex-col gap-3">
 
+                                {historyMessages.map((msg) => (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"
+                                            }`}
+                                    >
+                                        <div
+                                            className={`px-4 py-2 rounded-2xl text-sm max-w-[80%] whitespace-pre-wrap ${msg.role === "user"
+                                                ? "bg-blue-600 text-white"
+                                                : "bg-gray-200 text-gray-900"
+                                                }`}
+                                        >
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                ))}
 
-
-                </main>
+                            </div>
+                        </div>
+                    </div>
+                </main >
 
                 {/* Footer */}
-                <footer className="border-t border-gray-200 mt-auto bg-white">
+                < footer className="border-t border-gray-200 mt-auto bg-white" >
                     <div className="max-w-5xl mx-auto px-2 py-1 flex flex-col items-center gap-2 text-sm text-gray-400">
                         <div className="text-gray-800 font-bold tracking-widest text-xs uppercase">
                             <span className="text-blue-600">&lt;</span> To-Do <span className="text-blue-600">/&gt;</span>
@@ -476,8 +844,8 @@ export default function Todos() {
                             © {new Date().getFullYear()} To-Do. All rights reserved.
                         </p>
                     </div>
-                </footer>
-            </div>
+                </footer >
+            </div >
         </>
     );
 

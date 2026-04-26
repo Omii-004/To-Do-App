@@ -81,10 +81,10 @@ export default function About() {
                     {/* Navigation */}
                     <div className="flex justify-center border-t border-gray-200 pt-10 mt-10">
                         <Link
-                            to="/"
-                            className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 text-sm font-medium"
+                            to="/todos"
+                            className="group flex items-center gap-2 px-5 py-2 rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 text-sm font-medium"
                         >
-                            <span className="transition-transform group-hover:-translate-x-1">←</span> Back to Home
+                            <span className="transition-transform group-hover:-translate-x-1">←</span> Back
                         </Link>
                     </div>
                 </div>

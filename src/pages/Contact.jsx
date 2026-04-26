@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 export default function Contact() {
     return (
         <div className="relative min-h-screen bg-white text-gray-900 flex flex-col items-center p-6 md:p-12 overflow-hidden selection:bg-blue-500/20">
-            {/* Background Glows - Adjusted for light theme */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/50 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-100/50 blur-[120px] rounded-full pointer-events-none" />
 
@@ -53,10 +52,10 @@ export default function Contact() {
 
                     <div className="flex justify-center border-t border-gray-200 pt-10 mt-10">
                         <Link
-                            to="/"
-                            className="group flex items-center gap-2 px-8 py-4 rounded-2xl bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 text-sm font-medium"
+                            to="/todos"
+                            className="group flex items-center gap-2 px-5 py-2 rounded-full bg-gray-900 text-white hover:bg-gray-800 transition-all duration-300 text-sm font-medium"
                         >
-                            <span className="transition-transform group-hover:-translate-x-1">←</span> Back to Home
+                            <span className="transition-transform group-hover:-translate-x-1">←</span> Back
                         </Link>
                     </div>
                 </div>
